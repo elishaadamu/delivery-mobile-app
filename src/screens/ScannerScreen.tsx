@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,9 @@ import {
   TouchableOpacity,
   TextInput,
   Alert,
+  Animated,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '../constants/theme';
 import { sampleShipments } from '../data/mockData';
@@ -17,8 +19,31 @@ interface ScannerScreenProps {
 }
 
 export default function ScannerScreen({ onBack, onTrackPackage }: ScannerScreenProps) {
+  const insets = useSafeAreaInsets();
   const [manualCode, setManualCode] = useState('');
   const [flashOn, setFlashOn] = useState(false);
+
+  // Animated sweep laser
+  const laserAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const sweep = Animated.loop(
+      Animated.sequence([
+        Animated.timing(laserAnim, {
+          toValue: 200,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(laserAnim, {
+          toValue: 0,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    sweep.start();
+    return () => sweep.stop();
+  }, [laserAnim]);
 
   const handleScanPreset = (trackingNumber: string) => {
     onTrackPackage(trackingNumber);
@@ -29,27 +54,27 @@ export default function ScannerScreen({ onBack, onTrackPackage }: ScannerScreenP
       Alert.alert('Invalid Code', 'Please enter a valid tracking number.');
       return;
     }
-    onTrackPackage(manualCode.trim());
+    onTrackPackage(manualCode.trim().toUpperCase());
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Top Header */}
       <View style={styles.headerRow}>
         <TouchableOpacity
           style={styles.iconButton}
           onPress={onBack}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
           <Feather name="chevron-left" size={26} color="#ffffff" />
         </TouchableOpacity>
 
-        <Text style={styles.headerTitle}>Scan Parcel Code</Text>
+        <Text style={styles.headerTitle}>Scan Waybill Barcode</Text>
 
         <TouchableOpacity
           style={[styles.iconButton, flashOn && styles.iconButtonActive]}
           onPress={() => setFlashOn(!flashOn)}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
           <Ionicons
             name={flashOn ? 'flash' : 'flash-outline'}
@@ -63,30 +88,37 @@ export default function ScannerScreen({ onBack, onTrackPackage }: ScannerScreenP
         {/* Scanner Viewfinder Box */}
         <View style={styles.viewfinderContainer}>
           <View style={styles.viewfinderFrame}>
-            {/* 4 Corner Markers */}
+            {/* 4 Corner Reticle Markers */}
             <View style={[styles.corner, styles.cornerTopLeft]} />
             <View style={[styles.corner, styles.cornerTopRight]} />
             <View style={[styles.corner, styles.cornerBottomLeft]} />
             <View style={[styles.corner, styles.cornerBottomRight]} />
 
-            {/* Simulated Scanning Laser Line */}
-            <View style={styles.scanningLaser} />
+            {/* Smooth Sweeping Laser Line */}
+            <Animated.View
+              style={[
+                styles.scanningLaser,
+                {
+                  transform: [{ translateY: laserAnim }],
+                },
+              ]}
+            />
 
             <MaterialCommunityIcons
               name="barcode-scan"
               size={64}
-              color="rgba(34, 197, 94, 0.4)"
+              color="rgba(34, 197, 94, 0.3)"
             />
           </View>
 
           <Text style={styles.viewfinderHint}>
-            Align package QR code or standard 1D barcode within the viewfinder
+            Align Swift waybill QR code or 1D barcode inside the target frame
           </Text>
         </View>
 
         {/* Quick Sample Tracking Presets */}
         <View style={styles.presetsSection}>
-          <Text style={styles.presetsTitle}>Quick Sample Codes (Tap to Test)</Text>
+          <Text style={styles.presetsTitle}>Tap Live Nigerian Package to Scan:</Text>
           <View style={styles.presetChips}>
             {sampleShipments.map((ship) => (
               <TouchableOpacity
@@ -99,8 +131,13 @@ export default function ScannerScreen({ onBack, onTrackPackage }: ScannerScreenP
                 onPress={() => handleScanPreset(ship.trackingNumber)}
                 activeOpacity={0.8}
               >
+                <Ionicons
+                  name={ship.status === 'Completed' ? 'checkmark-circle' : 'cube-outline'}
+                  size={14}
+                  color={ship.status === 'Completed' ? COLORS.green : COLORS.orange}
+                />
                 <Text style={styles.presetChipNumber}>{ship.trackingNumber}</Text>
-                <Text style={styles.presetChipStatus}>{ship.status}</Text>
+                <Text style={styles.presetChipStatus}>• {ship.status}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -108,11 +145,11 @@ export default function ScannerScreen({ onBack, onTrackPackage }: ScannerScreenP
 
         {/* Manual Code Input Bar */}
         <View style={styles.manualSection}>
-          <Text style={styles.manualTitle}>Or Enter Code Manually</Text>
+          <Text style={styles.manualTitle}>Or Enter Tracking Number Manually</Text>
           <View style={styles.manualInputRow}>
             <TextInput
               style={styles.manualInput}
-              placeholder="e.g. A425HYJ8, C782BN91"
+              placeholder="e.g. SW-LAG-9428, SW-ABJ-1530"
               placeholderTextColor="#6b7280"
               value={manualCode}
               onChangeText={setManualCode}
@@ -123,7 +160,7 @@ export default function ScannerScreen({ onBack, onTrackPackage }: ScannerScreenP
               onPress={handleManualTrack}
               activeOpacity={0.85}
             >
-              <Text style={styles.trackButtonText}>Track</Text>
+              <Text style={styles.trackButtonText}>Lookup</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -142,45 +179,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 14,
+    paddingVertical: 12,
   },
   iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#1c1f26',
     alignItems: 'center',
     justifyContent: 'center',
   },
   iconButtonActive: {
-    backgroundColor: '#3b2d11',
+    backgroundColor: 'rgba(250, 204, 21, 0.2)',
   },
   headerTitle: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '700',
     color: COLORS.text,
     letterSpacing: -0.3,
   },
   content: {
     flex: 1,
-    paddingHorizontal: 20,
-    justifyContent: 'space-between',
-    paddingBottom: 30,
+    paddingHorizontal: 24,
+    justifyContent: 'space-around',
+    paddingBottom: 40,
   },
   viewfinderContainer: {
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: 10,
   },
   viewfinderFrame: {
-    width: 250,
-    height: 250,
+    width: 240,
+    height: 240,
     borderRadius: 24,
-    backgroundColor: '#16181e',
+    backgroundColor: '#12141a',
     borderWidth: 1,
-    borderColor: '#2d313c',
-    position: 'relative',
+    borderColor: '#262a36',
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
     overflow: 'hidden',
   },
   corner: {
@@ -190,106 +227,105 @@ const styles = StyleSheet.create({
     borderColor: COLORS.green,
   },
   cornerTopLeft: {
-    top: 14,
-    left: 14,
+    top: 12,
+    left: 12,
     borderTopWidth: 3,
     borderLeftWidth: 3,
     borderTopLeftRadius: 6,
   },
   cornerTopRight: {
-    top: 14,
-    right: 14,
+    top: 12,
+    right: 12,
     borderTopWidth: 3,
     borderRightWidth: 3,
     borderTopRightRadius: 6,
   },
   cornerBottomLeft: {
-    bottom: 14,
-    left: 14,
+    bottom: 12,
+    left: 12,
     borderBottomWidth: 3,
     borderLeftWidth: 3,
     borderBottomLeftRadius: 6,
   },
   cornerBottomRight: {
-    bottom: 14,
-    right: 14,
+    bottom: 12,
+    right: 12,
     borderBottomWidth: 3,
     borderRightWidth: 3,
     borderBottomRightRadius: 6,
   },
   scanningLaser: {
     position: 'absolute',
-    width: '80%',
-    height: 2,
+    left: 0,
+    right: 0,
+    top: 20,
+    height: 3,
     backgroundColor: COLORS.green,
     shadowColor: COLORS.green,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
+    shadowOpacity: 0.9,
+    shadowRadius: 10,
+    elevation: 6,
   },
   viewfinderHint: {
-    fontSize: 12,
     color: COLORS.textSecondary,
+    fontSize: 12,
     textAlign: 'center',
     marginTop: 16,
+    lineHeight: 18,
     maxWidth: 240,
-    lineHeight: 17,
   },
   presetsSection: {
-    marginVertical: 16,
+    marginTop: 10,
   },
   presetsTitle: {
     fontSize: 13,
     fontWeight: '700',
     color: COLORS.text,
     marginBottom: 10,
-    textAlign: 'center',
   },
   presetChips: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-    justifyContent: 'center',
   },
   presetChip: {
-    backgroundColor: COLORS.card,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#1a1d26',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#2b303d',
+    gap: 6,
   },
   presetChipOrange: {
-    borderColor: '#4d2d14',
-    backgroundColor: '#201610',
+    borderColor: 'rgba(249, 115, 22, 0.4)',
+    backgroundColor: 'rgba(249, 115, 22, 0.08)',
   },
   presetChipGreen: {
-    borderColor: '#193b22',
-    backgroundColor: '#122016',
+    borderColor: 'rgba(34, 197, 94, 0.4)',
+    backgroundColor: 'rgba(34, 197, 94, 0.08)',
   },
   presetChipNumber: {
+    color: '#ffffff',
     fontSize: 13,
-    fontWeight: '800',
-    color: COLORS.text,
+    fontWeight: '700',
   },
   presetChipStatus: {
-    fontSize: 10,
-    color: COLORS.textSecondary,
-    marginTop: 2,
+    color: '#9ca3af',
+    fontSize: 11,
+    fontWeight: '600',
   },
   manualSection: {
-    backgroundColor: COLORS.card,
-    borderRadius: 20,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    marginTop: 10,
   },
   manualTitle: {
     fontSize: 13,
     fontWeight: '700',
     color: COLORS.text,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   manualInputRow: {
     flexDirection: 'row',
@@ -298,25 +334,27 @@ const styles = StyleSheet.create({
   },
   manualInput: {
     flex: 1,
-    backgroundColor: '#111215',
+    height: 50,
+    backgroundColor: COLORS.card,
     borderRadius: 14,
+    paddingHorizontal: 16,
+    color: COLORS.text,
+    fontSize: 14,
+    fontWeight: '600',
     borderWidth: 1,
     borderColor: COLORS.border,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 14,
-    fontWeight: '700',
-    color: COLORS.text,
   },
   trackButton: {
     backgroundColor: COLORS.green,
+    paddingHorizontal: 20,
+    height: 50,
     borderRadius: 14,
-    paddingHorizontal: 18,
-    paddingVertical: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   trackButtonText: {
-    fontSize: 13,
-    fontWeight: '800',
     color: '#000000',
+    fontWeight: '800',
+    fontSize: 14,
   },
 });

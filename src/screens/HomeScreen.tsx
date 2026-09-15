@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,8 +7,9 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
-  Alert,
+  RefreshControl,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Ionicons,
   Feather,
@@ -19,10 +20,14 @@ import { COLORS } from '../constants/theme';
 import {
   initialUser,
   sampleShipments,
-  RecentShipmentItem,
+  MobileUserProfile,
 } from '../data/mockData';
+import { CustomerCard } from '../components/CustomerCard';
+import { PromoModal } from '../components/PromoModal';
+import { ScreenSkeleton } from '../components/SkeletonLoader';
 
 interface HomeScreenProps {
+  user?: MobileUserProfile;
   onNavigateToTracking: (id: string) => void;
   onNavigateToCheckout?: () => void;
   onNavigateToProfile?: () => void;
@@ -35,6 +40,7 @@ interface HomeScreenProps {
 }
 
 export default function HomeScreen({
+  user = initialUser,
   onNavigateToTracking,
   onNavigateToCheckout,
   onNavigateToProfile,
@@ -45,8 +51,18 @@ export default function HomeScreen({
   onNavigateToScanner,
   onNavigateToAllShipments,
 }: HomeScreenProps) {
+  const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
-  const [discountApplied, setDiscountApplied] = useState(false);
+  const [showPromoModal, setShowPromoModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 700);
+  }, []);
 
   const filteredShipments = sampleShipments.filter((s) =>
     s.trackingNumber.toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
@@ -55,8 +71,7 @@ export default function HomeScreen({
   );
 
   const handleGetDiscount = () => {
-    setDiscountApplied(true);
-    Alert.alert('🎉 Promo Applied', '20% OFF coupon SWIFT20 has been added to your account!');
+    setShowPromoModal(true);
   };
 
   const handleSearchSubmit = () => {
@@ -70,16 +85,32 @@ export default function HomeScreen({
     if (matched) {
       onNavigateToTracking(matched.id);
     } else {
-      // If it doesn't match a local shipment, still allow looking it up
       onNavigateToTracking(trimmed);
     }
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      {/* Celebratory Promo Modal */}
+      <PromoModal
+        visible={showPromoModal}
+        code="SWIFT20"
+        discountPercentage={20}
+        discountAmount={3000}
+        onClose={() => setShowPromoModal(false)}
+      />
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={COLORS.green}
+            colors={[COLORS.green]}
+          />
+        }
       >
         {/* Top Header */}
         <View style={styles.headerRow}>
@@ -94,8 +125,8 @@ export default function HomeScreen({
               style={styles.avatar}
             />
             <View>
-              <Text style={styles.userName}>{initialUser.name}</Text>
-              <Text style={styles.userDate}>{initialUser.date}</Text>
+              <Text style={styles.userName}>{user.name}</Text>
+              <Text style={styles.userDate}>VIP • Lagos, NG</Text>
             </View>
           </TouchableOpacity>
 
@@ -106,15 +137,18 @@ export default function HomeScreen({
             activeOpacity={0.85}
           >
             <FontAwesome5 name="coins" size={13} color={COLORS.green} />
-            <Text style={styles.coinsText}>{initialUser.coins} Coins</Text>
+            <Text style={styles.coinsText}>{user.coins || 872} Coins</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Search Input Bar */}
+        {/* Digital Customer Card (Express pass & Naira balance) */}
+        <CustomerCard user={user} onScanPress={onNavigateToScanner} compact />
+
+        {/* Search Input Bar with QR code scanner icon */}
         <View style={styles.searchBar}>
           <Feather name="search" size={18} color="#9ca3af" style={styles.searchIcon} />
           <TextInput
-            placeholder="Track Your Package"
+            placeholder="Track Nigerian Waybill №"
             placeholderTextColor="#9ca3af"
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -124,7 +158,8 @@ export default function HomeScreen({
           />
           <TouchableOpacity
             onPress={onNavigateToScanner}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            style={styles.qrScanButton}
           >
             <MaterialCommunityIcons name="qrcode-scan" size={20} color="#9ca3af" />
           </TouchableOpacity>
@@ -133,16 +168,14 @@ export default function HomeScreen({
         {/* Promo Card: Discount 20% OFF */}
         <View style={styles.promoCard}>
           <View style={styles.promoTextContainer}>
-            <Text style={styles.promoSubtitle}>Discount</Text>
+            <Text style={styles.promoSubtitle}>Exclusive Offer</Text>
             <Text style={styles.promoTitle}>20% OFF</Text>
             <TouchableOpacity
               style={styles.discountButton}
               onPress={handleGetDiscount}
               activeOpacity={0.85}
             >
-              <Text style={styles.discountButtonText}>
-                {discountApplied ? 'APPLIED (20%)' : 'GET DISCOUNT'}
-              </Text>
+              <Text style={styles.discountButtonText}>GET DISCOUNT</Text>
             </TouchableOpacity>
           </View>
 
@@ -165,7 +198,7 @@ export default function HomeScreen({
             <View style={styles.actionIconContainer}>
               <Ionicons name="card-outline" size={22} color="#d1d5db" />
             </View>
-            <Text style={styles.actionLabel}>Price</Text>
+            <Text style={styles.actionLabel}>Rates</Text>
           </TouchableOpacity>
 
           {/* Point -> Logistics Hubs Page */}
@@ -177,7 +210,7 @@ export default function HomeScreen({
             <View style={styles.actionIconContainer}>
               <Ionicons name="location-outline" size={22} color="#d1d5db" />
             </View>
-            <Text style={styles.actionLabel}>Point</Text>
+            <Text style={styles.actionLabel}>Hubs</Text>
           </TouchableOpacity>
 
           {/* News -> Logistics News Page */}
@@ -189,7 +222,7 @@ export default function HomeScreen({
             <View style={styles.actionIconContainer}>
               <Ionicons name="newspaper-outline" size={22} color="#d1d5db" />
             </View>
-            <Text style={styles.actionLabel}>News</Text>
+            <Text style={styles.actionLabel}>Updates</Text>
           </TouchableOpacity>
 
           {/* Info -> Service & Insurance Page */}
@@ -201,13 +234,13 @@ export default function HomeScreen({
             <View style={styles.actionIconContainer}>
               <Ionicons name="information-circle-outline" size={24} color="#d1d5db" />
             </View>
-            <Text style={styles.actionLabel}>Info</Text>
+            <Text style={styles.actionLabel}>Shield</Text>
           </TouchableOpacity>
         </View>
 
         {/* Recent Shipping Section */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Recent Shipping</Text>
+          <Text style={styles.sectionTitle}>Active & Recent Shipments</Text>
           <TouchableOpacity
             style={styles.seeAllButton}
             onPress={onNavigateToAllShipments}
@@ -257,25 +290,32 @@ export default function HomeScreen({
                   </View>
 
                   <View>
-                    <Text style={styles.idNumberLabel}>ID NUMBER</Text>
+                    <Text style={styles.idNumberLabel}>WAYBILL №</Text>
                     <Text style={styles.trackingIdText}>{item.trackingNumber}</Text>
+                    {item.destination && (
+                      <Text style={styles.routeMiniText} numberOfLines={1}>
+                        → {item.destination}
+                      </Text>
+                    )}
                   </View>
                 </View>
 
-                <Text
-                  style={[
-                    styles.statusText,
-                    {
-                      color: isOnTheWay
-                        ? COLORS.orange
-                        : isCompleted
-                        ? COLORS.green
-                        : '#9ca3af',
-                    },
-                  ]}
-                >
-                  {item.status}
-                </Text>
+                <View style={styles.statusBadge}>
+                  <Text
+                    style={[
+                      styles.statusText,
+                      {
+                        color: isOnTheWay
+                          ? COLORS.orange
+                          : isCompleted
+                          ? COLORS.green
+                          : '#9ca3af',
+                      },
+                    ]}
+                  >
+                    {item.status}
+                  </Text>
+                </View>
               </TouchableOpacity>
             );
           })}
@@ -292,14 +332,14 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 90,
+    paddingTop: 8,
+    paddingBottom: 120,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 18,
+    marginBottom: 8,
   },
   profileContainer: {
     flexDirection: 'row',
@@ -311,195 +351,206 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.15)',
+    borderColor: COLORS.green,
   },
   userName: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '800',
     color: COLORS.text,
     letterSpacing: -0.3,
   },
   userDate: {
     fontSize: 12,
     color: COLORS.textSecondary,
-    marginTop: 1,
+    marginTop: 2,
   },
   coinsBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#1c1e24',
+    backgroundColor: '#1b261e',
     paddingHorizontal: 12,
     paddingVertical: 7,
-    borderRadius: 20,
+    borderRadius: 16,
+    gap: 6,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: '#233d2a',
   },
   coinsText: {
-    fontSize: 13,
+    color: '#ffffff',
+    fontSize: 12,
     fontWeight: '700',
-    color: COLORS.green,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.card,
-    borderRadius: 20,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    height: 50,
+    marginVertical: 12,
     borderWidth: 1,
     borderColor: COLORS.border,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginBottom: 16,
   },
   searchIcon: {
-    marginRight: 10,
+    marginRight: 8,
   },
   searchInput: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 14,
     color: COLORS.text,
-    padding: 0,
+    fontWeight: '500',
     marginRight: 10,
+    paddingVertical: 0,
+  },
+  qrScanButton: {
+    padding: 4,
   },
   promoCard: {
-    position: 'relative',
-    backgroundColor: COLORS.green,
-    borderRadius: 24,
-    padding: 20,
     flexDirection: 'row',
+    backgroundColor: '#162b1d',
+    borderRadius: 22,
+    paddingHorizontal: 20,
+    paddingVertical: 18,
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: 18,
+    borderWidth: 1,
+    borderColor: '#1e3a24',
     overflow: 'hidden',
-    minHeight: 145,
-    marginBottom: 16,
   },
   promoTextContainer: {
-    zIndex: 2,
-    maxWidth: '58%',
+    flex: 1,
+    zIndex: 1,
   },
   promoSubtitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: 'rgba(0, 0, 0, 0.75)',
-    letterSpacing: 0.2,
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#86efac',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   promoTitle: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: '900',
-    color: '#000000',
+    color: '#ffffff',
     letterSpacing: -0.5,
-    marginTop: 2,
-    marginBottom: 12,
+    marginVertical: 4,
   },
   discountButton: {
-    backgroundColor: '#000000',
+    backgroundColor: COLORS.green,
     paddingHorizontal: 14,
-    paddingVertical: 9,
+    paddingVertical: 8,
     borderRadius: 12,
     alignSelf: 'flex-start',
+    marginTop: 6,
   },
   discountButtonText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 0.3,
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#000000',
+    letterSpacing: 0.5,
   },
   promoImage: {
-    position: 'absolute',
-    right: -25,
-    bottom: -15,
-    width: 190,
-    height: 175,
-    zIndex: 1,
+    width: 105,
+    height: 95,
+    transform: [{ scale: 1.15 }],
   },
   actionsGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 22,
+    marginBottom: 20,
   },
   actionButton: {
     alignItems: 'center',
-    gap: 8,
     width: '22%',
   },
   actionIconContainer: {
     width: 54,
     height: 54,
-    borderRadius: 27,
+    borderRadius: 18,
     backgroundColor: COLORS.card,
-    borderWidth: 1,
-    borderColor: COLORS.border,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: 6,
   },
   actionLabel: {
     fontSize: 12,
+    color: COLORS.textSecondary,
     fontWeight: '600',
-    color: '#d1d5db',
   },
   sectionHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 14,
+    alignItems: 'center',
+    marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '700',
     color: COLORS.text,
-    letterSpacing: -0.3,
   },
   seeAllButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 2,
   },
   seeAllText: {
     fontSize: 13,
-    fontWeight: '600',
     color: COLORS.green,
+    fontWeight: '600',
   },
   shipmentsList: {
-    gap: 12,
+    gap: 10,
   },
   shipmentCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: COLORS.card,
-    borderRadius: 20,
+    borderRadius: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     borderWidth: 1,
     borderColor: COLORS.border,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
   },
   shipmentLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: 12,
+    flex: 1,
   },
   boxCircle: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   idNumberLabel: {
     fontSize: 10,
     fontWeight: '700',
-    color: COLORS.textSecondary,
+    color: COLORS.textMuted,
     letterSpacing: 0.5,
   },
   trackingIdText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '800',
     color: COLORS.text,
-    letterSpacing: 0.2,
+    marginTop: 1,
+  },
+  routeMiniText: {
+    fontSize: 11,
+    color: '#94a3b8',
     marginTop: 2,
+    maxWidth: 180,
+  },
+  statusBadge: {
+    alignItems: 'flex-end',
   },
   statusText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '700',
   },
 });

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,9 @@ import {
   ScrollView,
   TextInput,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   Feather,
   Ionicons,
@@ -15,7 +17,9 @@ import {
   FontAwesome5,
 } from '@expo/vector-icons';
 import { COLORS } from '../constants/theme';
-import { getPackageById, PackageDetail } from '../data/mockData';
+import { getPackageById, sampleShipments, PackageDetail, packagesData } from '../data/mockData';
+import { pdfService } from '../services/pdfService';
+import { ScreenSkeleton } from '../components/SkeletonLoader';
 
 interface TrackingScreenProps {
   packageId?: string;
@@ -28,7 +32,12 @@ export default function TrackingScreen({
   onBack,
   onNavigateToCheckout,
 }: TrackingScreenProps) {
-  const data: PackageDetail = getPackageById(packageId);
+  const insets = useSafeAreaInsets();
+  const [selectedId, setSelectedId] = useState<string>(packageId);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState<boolean>(false);
+
+  const data: PackageDetail = getPackageById(selectedId);
 
   const [expandedSteps, setExpandedSteps] = useState<Record<string, boolean>>({
     'step-transit': true,
@@ -41,6 +50,20 @@ export default function TrackingScreen({
   );
   const [isEditing, setIsEditing] = useState(false);
 
+  // Switch package with simulated skeleton loader
+  const handleSelectPackage = (id: string) => {
+    if (id === selectedId) return;
+    setIsLoading(true);
+    setSelectedId(id);
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 450);
+  };
+
+  useEffect(() => {
+    setPackageName(data.parcelData.category || 'My package');
+  }, [selectedId]);
+
   const toggleStep = (stepId: string) => {
     setExpandedSteps((prev) => ({
       ...prev,
@@ -52,17 +75,28 @@ export default function TrackingScreen({
     Alert.alert('Share Tracking', `Tracking code №${data.trackingNumber} copied to clipboard!`);
   };
 
+  const handleDownloadPdf = async () => {
+    setIsGeneratingPdf(true);
+    try {
+      await pdfService.generateAndShareReceiptPdf(data);
+    } catch (e) {
+      Alert.alert('PDF Receipt', `Receipt for №${data.trackingNumber} generated.`);
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
   const isOnTheWay = data.status === 'On the way';
   const isCompleted = data.status === 'Completed';
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Top Navigation Header */}
       <View style={styles.headerRow}>
         <TouchableOpacity
           style={styles.iconButton}
           onPress={onBack}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
           <Feather name="chevron-left" size={26} color="#ffffff" />
         </TouchableOpacity>
@@ -118,299 +152,417 @@ export default function TrackingScreen({
         <TouchableOpacity
           style={styles.iconButton}
           onPress={handleShare}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
           <Feather name="share-2" size={20} color="#ffffff" />
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {/* Parcel Data Pill / Card */}
-        <TouchableOpacity
-          style={styles.parcelDataCard}
-          activeOpacity={0.85}
-          onPress={() => setIsParcelDataOpen(!isParcelDataOpen)}
+      {/* Horizontal Package Switcher (Show all trackings) */}
+      <View style={styles.packageSwitcherContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.packageSwitcherScroll}
         >
-          <View style={styles.parcelDataLeft}>
-            <View style={styles.parcelIconContainer}>
-              <Feather name="box" size={18} color={COLORS.green} />
-            </View>
-            <View>
-              <Text style={styles.parcelDataTitle}>Parcel Data & Specifications</Text>
-              <Text style={styles.parcelDataSub}>
-                {data.parcelData.weight} • {data.parcelData.dimensions}
-              </Text>
-            </View>
-          </View>
-          <Feather
-            name="chevron-right"
-            size={18}
-            color="#9ca3af"
-            style={{ transform: [{ rotate: isParcelDataOpen ? '90deg' : '0deg' }] }}
-          />
-        </TouchableOpacity>
-
-        {/* Expandable Parcel Details */}
-        {isParcelDataOpen && (
-          <View style={styles.parcelDetailsBox}>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Weight:</Text>
-              <Text style={styles.detailValue}>{data.parcelData.weight}</Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Dimensions:</Text>
-              <Text style={styles.detailValue}>{data.parcelData.dimensions}</Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Category:</Text>
-              <Text style={styles.detailValue}>{data.parcelData.category}</Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Origin:</Text>
-              <Text style={styles.detailValue}>{data.parcelData.sender}</Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Destination:</Text>
-              <Text style={styles.detailValue}>{data.parcelData.destination}</Text>
-            </View>
-            {data.recipientName && (
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Recipient:</Text>
-                <Text style={styles.detailValue}>{data.recipientName}</Text>
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* Editable Package Title */}
-        <View style={styles.sectionHeader}>
-          {isEditing ? (
-            <TextInput
-              style={styles.nameInput}
-              value={packageName}
-              onChangeText={setPackageName}
-              onBlur={() => setIsEditing(false)}
-              autoFocus
-            />
-          ) : (
-            <Text style={styles.sectionTitle}>{packageName}</Text>
-          )}
-          <TouchableOpacity
-            onPress={() => setIsEditing(!isEditing)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Feather name="edit-2" size={16} color="#9ca3af" style={styles.editIcon} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Stepper Vertical Timeline */}
-        <View style={styles.timelineContainer}>
-          {data.timeline.map((step, index) => {
-            const isLast = index === data.timeline.length - 1;
-            const isStepExpanded = expandedSteps[step.id] ?? false;
-
+          {sampleShipments.map((ship) => {
+            const isSelected = ship.id === selectedId;
             return (
-              <View key={step.id} style={styles.stepItem}>
-                {/* Step Icon Badge */}
+              <TouchableOpacity
+                key={ship.id}
+                style={[
+                  styles.packagePill,
+                  isSelected && styles.packagePillSelected,
+                ]}
+                onPress={() => handleSelectPackage(ship.id)}
+                activeOpacity={0.8}
+              >
                 <View
                   style={[
-                    styles.stepCircle,
-                    step.completed
-                      ? { backgroundColor: '#1e3a24', borderColor: COLORS.green, borderWidth: 1 }
-                      : step.active
-                      ? { backgroundColor: COLORS.orange }
-                      : { backgroundColor: '#24262f', borderWidth: 1, borderColor: '#3b3e4a' },
+                    styles.pillDot,
+                    {
+                      backgroundColor:
+                        ship.status === 'On the way'
+                          ? COLORS.orange
+                          : ship.status === 'Completed'
+                          ? COLORS.green
+                          : '#9ca3af',
+                    },
+                  ]}
+                />
+                <Text
+                  style={[
+                    styles.packagePillText,
+                    isSelected && styles.packagePillTextSelected,
                   ]}
                 >
-                  {step.completed ? (
-                    <Ionicons name="checkmark" size={16} color={COLORS.green} />
-                  ) : step.active ? (
-                    <MaterialCommunityIcons name="truck-fast-outline" size={18} color="#ffffff" />
-                  ) : (
-                    <Ionicons name="ellipse-outline" size={14} color="#9ca3af" />
-                  )}
-                </View>
-
-                {/* Connecting Vertical Line */}
-                {!isLast && (
-                  <View
-                    style={[
-                      styles.verticalLine,
-                      { backgroundColor: step.completed ? '#1e3a24' : '#2b2f38' },
-                    ]}
-                  />
-                )}
-
-                <View style={styles.stepContent}>
-                  <TouchableOpacity
-                    style={styles.stepRowTop}
-                    onPress={() => step.subSteps && toggleStep(step.id)}
-                    activeOpacity={step.subSteps ? 0.7 : 1}
-                  >
-                    <View style={styles.expandableTitleRow}>
-                      <Text
-                        style={[
-                          styles.stepTitle,
-                          step.completed && { color: '#ffffff' },
-                          step.active && { color: COLORS.orange },
-                        ]}
-                      >
-                        {step.title}
-                      </Text>
-                      {step.subSteps && (
-                        <Feather
-                          name={isStepExpanded ? 'chevron-up' : 'chevron-down'}
-                          size={16}
-                          color="#9ca3af"
-                        />
-                      )}
-                    </View>
-                    {step.date && <Text style={styles.stepDate}>{step.date}</Text>}
-                  </TouchableOpacity>
-
-                  <Text style={styles.stepLocation}>{step.location}</Text>
-
-                  {/* Verified Delivery Signature Badge */}
-                  {step.signature && (
-                    <View style={styles.signatureBadge}>
-                      <Feather name="check-circle" size={14} color={COLORS.green} />
-                      <Text style={styles.signatureText}>{step.signature}</Text>
-                    </View>
-                  )}
-
-                  {/* Sub-steps dropdown */}
-                  {step.subSteps && isStepExpanded && (
-                    <View style={styles.subStepsContainer}>
-                      {step.subSteps.map((sub, sIdx) => (
-                        <View key={sIdx} style={styles.subStepRow}>
-                          <View
-                            style={[
-                              styles.subStepDot,
-                              { backgroundColor: sub.completed ? COLORS.green : '#4b5563' },
-                            ]}
-                          />
-                          <Text
-                            style={[
-                              styles.subStepTitle,
-                              sub.completed ? styles.subStepTitleCompleted : styles.subStepTitlePending,
-                            ]}
-                          >
-                            {sub.title}
-                          </Text>
-                          {sub.date && <Text style={styles.subStepDate}>{sub.date}</Text>}
-                        </View>
-                      ))}
-                    </View>
-                  )}
-                </View>
-              </View>
+                  {ship.trackingNumber}
+                </Text>
+              </TouchableOpacity>
             );
           })}
-        </View>
+        </ScrollView>
+      </View>
 
-        {/* Payment Status Accordion / Card */}
-        <View style={styles.paymentCard}>
+      {isLoading ? (
+        <ScreenSkeleton />
+      ) : (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
+          {/* Parcel Data Pill / Card */}
           <TouchableOpacity
-            style={styles.paymentHeader}
-            onPress={() => setIsPaymentOpen(!isPaymentOpen)}
-            activeOpacity={0.8}
+            style={styles.parcelDataCard}
+            activeOpacity={0.85}
+            onPress={() => setIsParcelDataOpen(!isParcelDataOpen)}
           >
-            <View style={styles.paymentHeaderLeft}>
-              <View
-                style={[
-                  styles.walletIconContainer,
-                  data.payment.isPaid && { backgroundColor: COLORS.greenBg },
-                ]}
-              >
-                <Ionicons
-                  name={data.payment.isPaid ? 'checkmark-circle' : 'wallet-outline'}
-                  size={16}
-                  color={data.payment.isPaid ? COLORS.green : '#9ca3af'}
-                />
+            <View style={styles.parcelDataLeft}>
+              <View style={styles.parcelIconContainer}>
+                <Feather name="box" size={18} color={COLORS.green} />
               </View>
-              <View>
-                <Text style={styles.paymentCardTitle}>Payment Status</Text>
-                <Text style={styles.paymentCardSub}>
-                  {data.payment.isPaid ? 'Paid in full' : 'Pending payment'}
-                </Text>
-              </View>
+
+              {isEditing ? (
+                <View style={styles.editRow}>
+                  <TextInput
+                    style={styles.editInput}
+                    value={packageName}
+                    onChangeText={setPackageName}
+                    autoFocus
+                    returnKeyType="done"
+                    onSubmitEditing={() => setIsEditing(false)}
+                  />
+                  <TouchableOpacity
+                    onPress={() => setIsEditing(false)}
+                    style={styles.saveEditBtn}
+                  >
+                    <Feather name="check" size={16} color={COLORS.green} />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.nameRow}>
+                  <Text style={styles.parcelCategoryText}>{packageName}</Text>
+                  <TouchableOpacity
+                    onPress={() => setIsEditing(true)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Feather name="edit-2" size={13} color="#6b7280" />
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
+
             <Feather
-              name={isPaymentOpen ? 'chevron-up' : 'chevron-down'}
+              name={isParcelDataOpen ? 'chevron-up' : 'chevron-down'}
               size={18}
               color="#9ca3af"
             />
           </TouchableOpacity>
 
-          {isPaymentOpen && (
-            <View style={styles.paymentBody}>
-              <View style={styles.paymentLineItem}>
-                <Text style={styles.paymentLabel}>Shipment cost</Text>
-                <Text style={styles.paymentValue}>
-                  ${data.payment.shipmentCost.toFixed(2)}
+          {/* Parcel Data Drawer Details */}
+          {isParcelDataOpen && (
+            <View style={styles.parcelDataDrawer}>
+              <View style={styles.drawerItem}>
+                <Text style={styles.drawerLabel}>Category</Text>
+                <Text style={styles.drawerValue}>{data.parcelData.category}</Text>
+              </View>
+              <View style={styles.drawerItem}>
+                <Text style={styles.drawerLabel}>Weight & Size</Text>
+                <Text style={styles.drawerValue}>
+                  {data.parcelData.weight} • {data.parcelData.dimensions}
                 </Text>
               </View>
-
-              <View style={styles.paymentLineItem}>
-                <Text style={styles.paymentLabel}>Insurance</Text>
-                <Text style={styles.paymentValue}>
-                  ${data.payment.insurance.toFixed(2)}
-                </Text>
+              <View style={styles.drawerItem}>
+                <Text style={styles.drawerLabel}>Origin Depot</Text>
+                <Text style={styles.drawerValue}>{data.parcelData.sender}</Text>
               </View>
-
-              {data.payment.method && (
-                <View style={styles.paymentLineItem}>
-                  <Text style={styles.paymentLabel}>Payment Method</Text>
-                  <Text style={styles.paymentMethodValue}>{data.payment.method}</Text>
-                </View>
-              )}
-
-              <View style={styles.paymentTotalRow}>
-                <Text style={styles.paymentTotalLabel}>Total</Text>
-                <Text
-                  style={[
-                    styles.paymentTotalValue,
-                    data.payment.isPaid && { color: COLORS.green },
-                  ]}
-                >
-                  ${data.payment.total.toFixed(2)}
-                </Text>
+              <View style={styles.drawerItem}>
+                <Text style={styles.drawerLabel}>Destination Address</Text>
+                <Text style={styles.drawerValue}>{data.parcelData.destination}</Text>
               </View>
-
-              {/* Action Button: Checkout if unpaid, or receipt if paid */}
-              {!data.payment.isPaid ? (
-                <TouchableOpacity
-                  style={styles.checkoutCTAButton}
-                  activeOpacity={0.85}
-                  onPress={onNavigateToCheckout}
-                >
-                  <Ionicons name="card-outline" size={18} color="#000000" />
-                  <Text style={styles.checkoutCTAText}>
-                    Pay Now (${data.payment.total.toFixed(2)})
-                  </Text>
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity
-                  style={styles.paidReceiptButton}
-                  activeOpacity={0.85}
-                  onPress={() =>
-                    Alert.alert(
-                      '📄 Official Receipt',
-                      `Invoice #INV-${data.trackingNumber}\nAmount: $${data.payment.total.toFixed(2)}\nStatus: PAID\nMethod: ${data.payment.method || 'Card'}\nDate: ${data.payment.paidDate || 'Processed'}`
-                    )
-                  }
-                >
-                  <Feather name="file-text" size={16} color={COLORS.green} />
-                  <Text style={styles.paidReceiptButtonText}>View Official Receipt</Text>
-                </TouchableOpacity>
-              )}
             </View>
           )}
-        </View>
-      </ScrollView>
+
+          {/* Status Header Card */}
+          <View style={styles.statusHeroCard}>
+            <View style={styles.statusHeroTop}>
+              <View style={styles.statusBadgeRow}>
+                <View
+                  style={[
+                    styles.statusBadgeDot,
+                    {
+                      backgroundColor: isOnTheWay
+                        ? COLORS.orange
+                        : isCompleted
+                        ? COLORS.green
+                        : '#9ca3af',
+                    },
+                  ]}
+                />
+                <Text
+                  style={[
+                    styles.statusHeroTitle,
+                    {
+                      color: isOnTheWay
+                        ? COLORS.orange
+                        : isCompleted
+                        ? COLORS.green
+                        : '#9ca3af',
+                    },
+                  ]}
+                >
+                  {data.status.toUpperCase()}
+                </Text>
+              </View>
+
+              {data.estimatedDelivery && (
+                <Text style={styles.etaText}>
+                  Est. Delivery: {data.estimatedDelivery}
+                </Text>
+              )}
+            </View>
+
+            <View style={styles.heroRouteBox}>
+              <View style={styles.heroRoutePoint}>
+                <Ionicons name="radio-button-on" size={14} color={COLORS.green} />
+                <Text style={styles.heroRouteAddress} numberOfLines={1}>
+                  {data.parcelData.sender}
+                </Text>
+              </View>
+              <View style={styles.routeVerticalDashed} />
+              <View style={styles.heroRoutePoint}>
+                <Ionicons name="location" size={16} color={COLORS.orange} />
+                <Text style={styles.heroRouteAddress} numberOfLines={1}>
+                  {data.parcelData.destination}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Timeline Section */}
+          <View style={styles.timelineCard}>
+            <Text style={styles.sectionHeader}>Shipment Timeline</Text>
+
+            {data.timeline.map((step, idx) => {
+              const isStepExpanded = expandedSteps[step.id] ?? false;
+              const isLast = idx === data.timeline.length - 1;
+
+              return (
+                <View key={step.id} style={styles.timelineStepContainer}>
+                  {/* Left Column: Icon & Vertical Line */}
+                  <View style={styles.stepLeftCol}>
+                    <View
+                      style={[
+                        styles.stepIconCircle,
+                        step.completed && { backgroundColor: COLORS.greenBg },
+                        step.active && { backgroundColor: COLORS.orangeBg },
+                      ]}
+                    >
+                      {step.icon === 'created' && (
+                        <Feather
+                          name="file-text"
+                          size={14}
+                          color={step.completed ? COLORS.green : '#9ca3af'}
+                        />
+                      )}
+                      {step.icon === 'transit' && (
+                        <MaterialCommunityIcons
+                          name="truck-delivery"
+                          size={16}
+                          color={step.active ? COLORS.orange : step.completed ? COLORS.green : '#9ca3af'}
+                        />
+                      )}
+                      {step.icon === 'received' && (
+                        <Feather
+                          name="check"
+                          size={14}
+                          color={step.completed ? COLORS.green : '#9ca3af'}
+                        />
+                      )}
+                    </View>
+                    {!isLast && <View style={styles.stepVerticalLine} />}
+                  </View>
+
+                  {/* Right Column: Details */}
+                  <View style={styles.stepRightCol}>
+                    <TouchableOpacity
+                      onPress={() => step.subSteps && toggleStep(step.id)}
+                      activeOpacity={step.subSteps ? 0.7 : 1}
+                    >
+                      <View style={styles.expandableTitleRow}>
+                        <Text
+                          style={[
+                            styles.stepTitle,
+                            step.completed && { color: '#ffffff' },
+                            step.active && { color: COLORS.orange },
+                          ]}
+                        >
+                          {step.title}
+                        </Text>
+                        {step.subSteps && (
+                          <Feather
+                            name={isStepExpanded ? 'chevron-up' : 'chevron-down'}
+                            size={16}
+                            color="#9ca3af"
+                          />
+                        )}
+                      </View>
+                      {step.date && <Text style={styles.stepDate}>{step.date}</Text>}
+                    </TouchableOpacity>
+
+                    <Text style={styles.stepLocation}>{step.location}</Text>
+
+                    {/* Verified Delivery Signature Badge */}
+                    {step.signature && (
+                      <View style={styles.signatureBadge}>
+                        <Feather name="check-circle" size={14} color={COLORS.green} />
+                        <Text style={styles.signatureText}>{step.signature}</Text>
+                      </View>
+                    )}
+
+                    {/* Sub-steps dropdown */}
+                    {step.subSteps && isStepExpanded && (
+                      <View style={styles.subStepsContainer}>
+                        {step.subSteps.map((sub, sIdx) => (
+                          <View key={sIdx} style={styles.subStepRow}>
+                            <View
+                              style={[
+                                styles.subStepDot,
+                                { backgroundColor: sub.completed ? COLORS.green : '#4b5563' },
+                              ]}
+                            />
+                            <Text
+                              style={[
+                                styles.subStepTitle,
+                                sub.completed ? styles.subStepTitleCompleted : styles.subStepTitlePending,
+                              ]}
+                            >
+                              {sub.title}
+                            </Text>
+                            {sub.date && <Text style={styles.subStepDate}>{sub.date}</Text>}
+                          </View>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+
+          {/* Payment Status Accordion / Card */}
+          <View style={styles.paymentCard}>
+            <TouchableOpacity
+              style={styles.paymentHeader}
+              onPress={() => setIsPaymentOpen(!isPaymentOpen)}
+              activeOpacity={0.8}
+            >
+              <View style={styles.paymentHeaderLeft}>
+                <View
+                  style={[
+                    styles.walletIconContainer,
+                    data.payment.isPaid && { backgroundColor: COLORS.greenBg },
+                  ]}
+                >
+                  <Ionicons
+                    name={data.payment.isPaid ? 'checkmark-circle' : 'wallet-outline'}
+                    size={16}
+                    color={data.payment.isPaid ? COLORS.green : '#9ca3af'}
+                  />
+                </View>
+                <View>
+                  <Text style={styles.paymentCardTitle}>Payment Breakdown</Text>
+                  <Text style={styles.paymentCardSub}>
+                    {data.payment.isPaid ? 'Paid in full (Paystack)' : 'Pending payment'}
+                  </Text>
+                </View>
+              </View>
+              <Feather
+                name={isPaymentOpen ? 'chevron-up' : 'chevron-down'}
+                size={18}
+                color="#9ca3af"
+              />
+            </TouchableOpacity>
+
+            {isPaymentOpen && (
+              <View style={styles.paymentBody}>
+                <View style={styles.paymentLineItem}>
+                  <Text style={styles.paymentLabel}>Freight & Transit Fee</Text>
+                  <Text style={styles.paymentValue}>
+                    ₦{data.payment.shipmentCost.toLocaleString()}
+                  </Text>
+                </View>
+
+                <View style={styles.paymentLineItem}>
+                  <Text style={styles.paymentLabel}>Transit Insurance (100% Shield)</Text>
+                  <Text style={styles.paymentValue}>
+                    ₦{data.payment.insurance.toLocaleString()}
+                  </Text>
+                </View>
+
+                <View style={styles.paymentLineItem}>
+                  <Text style={styles.paymentLabel}>FIRS Statutory VAT (7.5%)</Text>
+                  <Text style={styles.paymentValue}>
+                    ₦{(data.payment.vat || Math.round(data.payment.shipmentCost * 0.075)).toLocaleString()}
+                  </Text>
+                </View>
+
+                {data.payment.method && (
+                  <View style={styles.paymentLineItem}>
+                    <Text style={styles.paymentLabel}>Payment Channel</Text>
+                    <Text style={styles.paymentMethodValue}>{data.payment.method}</Text>
+                  </View>
+                )}
+
+                <View style={styles.paymentTotalRow}>
+                  <Text style={styles.paymentTotalLabel}>Total Amount</Text>
+                  <Text
+                    style={[
+                      styles.paymentTotalValue,
+                      data.payment.isPaid && { color: COLORS.green },
+                    ]}
+                  >
+                    ₦{data.payment.total.toLocaleString()}
+                  </Text>
+                </View>
+
+                {/* Real PDF Receipt Button */}
+                <TouchableOpacity
+                  style={styles.realPdfBtn}
+                  activeOpacity={0.85}
+                  onPress={handleDownloadPdf}
+                  disabled={isGeneratingPdf}
+                >
+                  {isGeneratingPdf ? (
+                    <ActivityIndicator size="small" color="#ffffff" />
+                  ) : (
+                    <>
+                      <MaterialCommunityIcons name="file-pdf-box" size={20} color="#ffffff" />
+                      <Text style={styles.realPdfBtnText}>
+                        {data.payment.isPaid ? 'Official PDF Tax Receipt' : 'Download Invoice PDF'}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+
+                {/* Pay Now Button if Unpaid */}
+                {!data.payment.isPaid && (
+                  <TouchableOpacity
+                    style={styles.checkoutCTAButton}
+                    activeOpacity={0.85}
+                    onPress={onNavigateToCheckout}
+                  >
+                    <Ionicons name="card-outline" size={18} color="#000000" />
+                    <Text style={styles.checkoutCTAText}>
+                      Pay Now (₦{data.payment.total.toLocaleString()})
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+          </View>
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -425,19 +577,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 14,
+    paddingVertical: 12,
   },
   iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#1c1f26',
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerCenter: {
     alignItems: 'center',
-    gap: 4,
   },
   headerTitle: {
     fontSize: 17,
@@ -448,190 +599,281 @@ const styles = StyleSheet.create({
   headerStatusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 8,
+    borderRadius: 10,
+    marginTop: 4,
     borderWidth: 1,
   },
   headerStatusDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
+    marginRight: 6,
   },
   headerStatusText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
+  },
+  packageSwitcherContainer: {
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#20242e',
+  },
+  packageSwitcherScroll: {
+    paddingHorizontal: 18,
+    gap: 8,
+  },
+  packagePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#161922',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#2d3342',
+    gap: 6,
+  },
+  packagePillSelected: {
+    backgroundColor: '#1e382b',
+    borderColor: COLORS.green,
+  },
+  pillDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  packagePillText: {
+    color: '#94a3b8',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  packagePillTextSelected: {
+    color: '#ffffff',
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 110,
+    paddingTop: 14,
+    paddingBottom: 120,
   },
   parcelDataCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: COLORS.card,
-    borderRadius: 18,
-    padding: 14,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 14,
     borderWidth: 1,
     borderColor: COLORS.border,
-    marginBottom: 16,
   },
   parcelDataLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
     flex: 1,
   },
   parcelIconContainer: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: COLORS.greenBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  parcelDataTitle: {
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  parcelCategoryText: {
     fontSize: 14,
     fontWeight: '700',
     color: COLORS.text,
   },
-  parcelDataSub: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    marginTop: 2,
-  },
-  parcelDetailsBox: {
-    backgroundColor: '#16181e',
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#262932',
-    gap: 8,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  detailLabel: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-  },
-  detailValue: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.text,
-    maxWidth: '65%',
-    textAlign: 'right',
-  },
-  sectionHeader: {
+  editRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 16,
+    flex: 1,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+  editInput: {
+    flex: 1,
     color: COLORS.text,
-    letterSpacing: -0.3,
-  },
-  nameInput: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: '700',
-    color: COLORS.text,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.green,
     paddingVertical: 2,
-    minWidth: 160,
   },
-  editIcon: {
-    marginLeft: 4,
+  saveEditBtn: {
+    marginLeft: 8,
+    padding: 4,
   },
-  timelineContainer: {
-    marginBottom: 20,
+  parcelDataDrawer: {
+    backgroundColor: '#161922',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#262a36',
+    gap: 8,
   },
-  stepItem: {
+  drawerItem: {
     flexDirection: 'row',
-    position: 'relative',
-    marginBottom: 20,
-  },
-  stepCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 2,
-    marginRight: 14,
-    marginTop: 2,
-  },
-  verticalLine: {
-    position: 'absolute',
-    left: 15,
-    top: 34,
-    bottom: -22,
-    width: 2,
-    zIndex: 1,
-  },
-  stepContent: {
-    flex: 1,
-    paddingBottom: 4,
-  },
-  stepRowTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 4,
   },
-  expandableTitleRow: {
+  drawerLabel: {
+    fontSize: 12,
+    color: '#94a3b8',
+  },
+  drawerValue: {
+    fontSize: 12,
+    color: '#f1f5f9',
+    fontWeight: '600',
+    maxWidth: '65%',
+    textAlign: 'right',
+  },
+  statusHeroCard: {
+    backgroundColor: '#151922',
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#262a36',
+    marginBottom: 16,
+  },
+  statusHeroTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  statusBadgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
-  stepTitle: {
+  statusBadgeDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statusHeroTitle: {
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  etaText: {
+    fontSize: 11,
+    color: '#94a3b8',
+    fontWeight: '600',
+  },
+  heroRouteBox: {
+    backgroundColor: '#0f1218',
+    padding: 12,
+    borderRadius: 12,
+  },
+  heroRoutePoint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  routeVerticalDashed: {
+    width: 1,
+    height: 10,
+    backgroundColor: '#374151',
+    marginLeft: 6,
+    marginVertical: 2,
+  },
+  heroRouteAddress: {
+    color: '#cbd5e1',
+    fontSize: 12,
+    fontWeight: '600',
+    flex: 1,
+  },
+  timelineCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 20,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    marginBottom: 16,
+  },
+  sectionHeader: {
     fontSize: 15,
     fontWeight: '700',
     color: COLORS.text,
+    marginBottom: 16,
+  },
+  timelineStepContainer: {
+    flexDirection: 'row',
+  },
+  stepLeftCol: {
+    alignItems: 'center',
+    width: 32,
+    marginRight: 10,
+  },
+  stepIconCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#1f222b',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepVerticalLine: {
+    width: 2,
+    flex: 1,
+    backgroundColor: '#262a36',
+    marginVertical: 4,
+  },
+  stepRightCol: {
+    flex: 1,
+    paddingBottom: 22,
+  },
+  expandableTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  stepTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#9ca3af',
   },
   stepDate: {
     fontSize: 11,
-    color: COLORS.textMuted,
+    color: '#64748b',
+    marginTop: 2,
   },
   stepLocation: {
     fontSize: 12,
-    color: COLORS.textSecondary,
-    marginBottom: 6,
+    color: '#cbd5e1',
+    marginTop: 4,
   },
   signatureBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: COLORS.greenBg,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#1e3a24',
-    marginTop: 4,
-    marginBottom: 8,
+    gap: 6,
+    marginTop: 8,
+    alignSelf: 'flex-start',
   },
   signatureText: {
     fontSize: 11,
-    fontWeight: '700',
     color: COLORS.green,
+    fontWeight: '700',
   },
   subStepsContainer: {
-    backgroundColor: '#16181e',
-    borderRadius: 12,
-    padding: 12,
-    marginTop: 6,
-    borderWidth: 1,
-    borderColor: '#262932',
-    gap: 10,
+    marginTop: 10,
+    paddingLeft: 10,
+    borderLeftWidth: 1,
+    borderLeftColor: '#334155',
+    gap: 8,
   },
   subStepRow: {
     flexDirection: 'row',
@@ -648,28 +890,26 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   subStepTitleCompleted: {
-    color: '#d1d5db',
+    color: '#cbd5e1',
   },
   subStepTitlePending: {
-    color: '#6b7280',
-    fontStyle: 'italic',
+    color: '#64748b',
   },
   subStepDate: {
-    fontSize: 11,
-    color: COLORS.textMuted,
+    fontSize: 10,
+    color: '#64748b',
   },
   paymentCard: {
     backgroundColor: COLORS.card,
     borderRadius: 20,
+    padding: 16,
     borderWidth: 1,
     borderColor: COLORS.border,
-    padding: 16,
-    marginBottom: 20,
   },
   paymentHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
   },
   paymentHeaderLeft: {
     flexDirection: 'row',
@@ -677,10 +917,10 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   walletIconContainer: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#252831',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#1f222b',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -697,9 +937,9 @@ const styles = StyleSheet.create({
   paymentBody: {
     marginTop: 16,
     borderTopWidth: 1,
-    borderTopColor: '#252831',
+    borderTopColor: '#262a36',
     paddingTop: 14,
-    gap: 8,
+    gap: 10,
   },
   paymentLineItem: {
     flexDirection: 'row',
@@ -707,7 +947,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   paymentLabel: {
-    fontSize: 13,
+    fontSize: 12,
     color: COLORS.textSecondary,
   },
   paymentValue: {
@@ -717,59 +957,56 @@ const styles = StyleSheet.create({
   },
   paymentMethodValue: {
     fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.green,
+    fontWeight: '700',
+    color: '#38bdf8',
   },
   paymentTotalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: '#252831',
+    borderTopColor: '#262a36',
     paddingTop: 10,
     marginTop: 4,
-    marginBottom: 8,
   },
   paymentTotalLabel: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '800',
     color: COLORS.text,
   },
   paymentTotalValue: {
-    fontSize: 18,
+    fontSize: 16,
+    fontWeight: '900',
+    color: COLORS.text,
+  },
+  realPdfBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#15803d',
+    borderRadius: 14,
+    paddingVertical: 13,
+    gap: 8,
+    marginTop: 8,
+  },
+  realPdfBtnText: {
+    color: '#ffffff',
     fontWeight: '800',
-    color: COLORS.orange,
+    fontSize: 13,
   },
   checkoutCTAButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
     backgroundColor: COLORS.green,
     borderRadius: 14,
-    paddingVertical: 12,
-    marginTop: 6,
+    paddingVertical: 14,
+    gap: 8,
+    marginTop: 4,
   },
   checkoutCTAText: {
-    fontSize: 13,
-    fontWeight: '800',
     color: '#000000',
-  },
-  paidReceiptButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: COLORS.greenBg,
-    borderRadius: 14,
-    paddingVertical: 12,
-    borderWidth: 1,
-    borderColor: '#1e3a24',
-    marginTop: 6,
-  },
-  paidReceiptButtonText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: COLORS.green,
+    fontWeight: '800',
+    fontSize: 14,
   },
 });

@@ -8,6 +8,7 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '../constants/theme';
 import { sampleHubs, LogisticsHub } from '../data/mockData';
@@ -17,6 +18,7 @@ interface HubsScreenProps {
 }
 
 export default function HubsScreen({ onBack }: HubsScreenProps) {
+  const insets = useSafeAreaInsets();
   const [search, setSearch] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'locker' | 'hub' | 'express'>('all');
   const [defaultHubId, setDefaultHubId] = useState('hub-1');
@@ -43,13 +45,13 @@ export default function HubsScreen({ onBack }: HubsScreenProps) {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Top Header */}
       <View style={styles.headerRow}>
         <TouchableOpacity
           style={styles.iconButton}
           onPress={onBack}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
           <Feather name="chevron-left" size={26} color="#ffffff" />
         </TouchableOpacity>
@@ -246,7 +248,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
   searchBar: {
     flexDirection: 'row',

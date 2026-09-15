@@ -7,7 +7,8 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import { Feather, Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '../constants/theme';
 import { sampleFaqs } from '../data/mockData';
 
@@ -16,6 +17,7 @@ interface InfoScreenProps {
 }
 
 export default function InfoScreen({ onBack }: InfoScreenProps) {
+  const insets = useSafeAreaInsets();
   const [expandedFaq, setExpandedFaq] = useState<number | null>(0);
 
   const toggleFaq = (idx: number) => {
@@ -25,22 +27,25 @@ export default function InfoScreen({ onBack }: InfoScreenProps) {
   const handleClaim = () => {
     Alert.alert(
       '🛡️ Submit Insurance Claim',
-      'Have your tracking number and parcel invoice ready. Claims under Premium Shield are reimbursed within 24 hours.',
+      'Have your tracking number and parcel invoice ready. Claims under Premium Shield are reimbursed within 24 hours via Nigerian bank transfer.',
       [
-        { text: 'File a Claim Now', onPress: () => Alert.alert('Claim Portal', 'Redirecting to claims verification portal...') },
+        {
+          text: 'File a Claim Now',
+          onPress: () => Alert.alert('Claim Portal', 'Connecting to Swift Logistics Nigerian claims center...'),
+        },
         { text: 'Cancel', style: 'cancel' },
       ]
     );
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Top Header */}
       <View style={styles.headerRow}>
         <TouchableOpacity
           style={styles.iconButton}
           onPress={onBack}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
           <Feather name="chevron-left" size={26} color="#ffffff" />
         </TouchableOpacity>
@@ -49,10 +54,10 @@ export default function InfoScreen({ onBack }: InfoScreenProps) {
 
         <TouchableOpacity
           style={styles.iconButton}
-          onPress={() => Alert.alert('Support', '24/7 Support Hotline: +49 30 9018 220')}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          onPress={() => Alert.alert('Swift Nigerian Support', '24/7 Support Hotline: +234 1 889 0421\nWhatsApp: +234 803 456 7890')}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
-          <Feather name="headphones" size={18} color="#9ca3af" />
+          <Feather name="headphones" size={20} color="#9ca3af" />
         </TouchableOpacity>
       </View>
 
@@ -68,22 +73,22 @@ export default function InfoScreen({ onBack }: InfoScreenProps) {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.heroTitle}>Premium Protection Shield</Text>
-              <Text style={styles.heroSubtitle}>Guaranteed complete peace of mind in transit</Text>
+              <Text style={styles.heroSubtitle}>Guaranteed complete peace of mind across Nigeria</Text>
             </View>
           </View>
 
           <View style={styles.heroPerks}>
             <View style={styles.perkRow}>
               <Feather name="check" size={14} color={COLORS.green} />
-              <Text style={styles.perkText}>100% replacement reimbursement up to $2,500</Text>
+              <Text style={styles.perkText}>100% full replacement reimbursement up to ₦2,500,000</Text>
             </View>
             <View style={styles.perkRow}>
               <Feather name="check" size={14} color={COLORS.green} />
-              <Text style={styles.perkText}>Covers mechanical, drop, water, and porch-theft damage</Text>
+              <Text style={styles.perkText}>Covers transit damage, highway loss, and porch theft</Text>
             </View>
             <View style={styles.perkRow}>
               <Feather name="check" size={14} color={COLORS.green} />
-              <Text style={styles.perkText}>24-hour fast claim payout directly to your account</Text>
+              <Text style={styles.perkText}>24-hour fast payout directly to your Nigerian bank account</Text>
             </View>
           </View>
 
@@ -101,30 +106,34 @@ export default function InfoScreen({ onBack }: InfoScreenProps) {
           <Text style={styles.sectionTitle}>Coverage Tiers</Text>
 
           <View style={styles.tierCardsRow}>
-            {/* Basic */}
+            {/* Standard */}
             <View style={styles.tierCard}>
-              <Text style={styles.tierName}>Standard</Text>
+              <View style={styles.tierHeader}>
+                <Text style={styles.tierName}>Standard</Text>
+              </View>
               <Text style={styles.tierPrice}>Included Free</Text>
               <Text style={styles.tierDesc}>Basic protection for every standard package</Text>
 
               <View style={styles.tierFeatures}>
-                <Text style={styles.tierFeatureItem}>✓ Up to $100 coverage</Text>
+                <Text style={styles.tierFeatureItem}>✓ Up to ₦100,000 cover</Text>
                 <Text style={styles.tierFeatureItem}>✓ Online GPS tracking</Text>
                 <Text style={styles.tierFeatureItem}>✓ 7-day claim review</Text>
               </View>
             </View>
 
-            {/* Premium */}
+            {/* Premium Shield - Fixed badge collision */}
             <View style={[styles.tierCard, styles.tierCardFeatured]}>
-              <View style={styles.bestValuePill}>
-                <Text style={styles.bestValueText}>POPULAR</Text>
+              <View style={styles.tierHeaderWithBadge}>
+                <Text style={[styles.tierName, { flex: 1 }]}>Premium</Text>
+                <View style={styles.popularBadge}>
+                  <Text style={styles.popularBadgeText}>POPULAR</Text>
+                </View>
               </View>
-              <Text style={styles.tierName}>Premium Shield</Text>
-              <Text style={[styles.tierPrice, { color: COLORS.green }]}>$4.00 / parcel</Text>
-              <Text style={styles.tierDesc}>Comprehensive zero-deductible insurance</Text>
+              <Text style={[styles.tierPrice, { color: COLORS.green }]}>₦3,500 / parcel</Text>
+              <Text style={styles.tierDesc}>Zero-deductible full value protection</Text>
 
               <View style={styles.tierFeatures}>
-                <Text style={[styles.tierFeatureItem, { color: '#ffffff' }]}>✓ Up to $2,500 coverage</Text>
+                <Text style={[styles.tierFeatureItem, { color: '#ffffff' }]}>✓ Up to ₦2.5M cover</Text>
                 <Text style={[styles.tierFeatureItem, { color: '#ffffff' }]}>✓ Zero deductible</Text>
                 <Text style={[styles.tierFeatureItem, { color: '#ffffff' }]}>✓ 24h rapid claims</Text>
               </View>
@@ -142,8 +151,8 @@ export default function InfoScreen({ onBack }: InfoScreenProps) {
                 <MaterialCommunityIcons name="clock-fast" size={18} color={COLORS.orange} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.guaranteeName}>Same-Day Metro Dispatch</Text>
-                <Text style={styles.guaranteeSub}>Orders booked before 11:00 AM delivered by 19:00</Text>
+                <Text style={styles.guaranteeName}>Same-Day Metro Lagos & Abuja</Text>
+                <Text style={styles.guaranteeSub}>Bookings before 11:00 AM delivered by 18:30 same day</Text>
               </View>
             </View>
 
@@ -154,8 +163,8 @@ export default function InfoScreen({ onBack }: InfoScreenProps) {
                 <MaterialCommunityIcons name="truck-delivery" size={18} color={COLORS.green} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.guaranteeName}>Next-Day Nationwide Express</Text>
-                <Text style={styles.guaranteeSub}>Guaranteed overnight delivery across all 16 federal states</Text>
+                <Text style={styles.guaranteeName}>Interstate Express Freight</Text>
+                <Text style={styles.guaranteeSub}>Guaranteed overnight delivery across all 36 States & FCT</Text>
               </View>
             </View>
 
@@ -166,8 +175,8 @@ export default function InfoScreen({ onBack }: InfoScreenProps) {
                 <MaterialCommunityIcons name="airplane" size={18} color="#60a5fa" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.guaranteeName}>Cross-Border Priority</Text>
-                <Text style={styles.guaranteeSub}>2 - 4 business days across all European Union destinations</Text>
+                <Text style={styles.guaranteeName}>International Air Express</Text>
+                <Text style={styles.guaranteeSub}>3 - 5 business days to UK, US, Canada & UAE destinations</Text>
               </View>
             </View>
           </View>
@@ -178,17 +187,17 @@ export default function InfoScreen({ onBack }: InfoScreenProps) {
           style={styles.prohibitedCard}
           onPress={() =>
             Alert.alert(
-              '⚠️ Prohibited Goods',
-              'The following items cannot be shipped:\n• Explosives & Flammable liquids\n• Unregistered Lithium-ion batteries\n• Perishable foods without cooling\n• Currency, bullion & unregistered cash'
+              '⚠️ Prohibited Goods (Nigeria)',
+              'The following items cannot be accepted for shipment:\n• Explosives & Flammable liquids\n• Unregistered Lithium-ion batteries\n• Perishable foods without temperature control\n• Unregistered cash & contraband substances'
             )
           }
           activeOpacity={0.8}
         >
           <View style={styles.prohibitedLeft}>
-            <MaterialCommunityIcons name="alert-octagon-outline" size={22} color="#f59e0b" />
-            <View>
+            <MaterialCommunityIcons name="alert-octagon-outline" size={22} color="#fbbf24" />
+            <View style={{ flex: 1 }}>
               <Text style={styles.prohibitedTitle}>Prohibited & Restricted Items Guide</Text>
-              <Text style={styles.prohibitedSub}>Review safety rules before sealing your parcel</Text>
+              <Text style={styles.prohibitedSub}>Review safety rules before dispatching your package</Text>
             </View>
           </View>
           <Feather name="chevron-right" size={18} color="#9ca3af" />
@@ -240,25 +249,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 14,
+    paddingVertical: 14,
   },
   iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#1c1f26',
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '700',
     color: COLORS.text,
     letterSpacing: -0.3,
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingBottom: 110,
   },
   heroCard: {
     backgroundColor: '#162b1d',
@@ -308,19 +317,19 @@ const styles = StyleSheet.create({
   claimButton: {
     backgroundColor: COLORS.green,
     borderRadius: 14,
-    paddingVertical: 12,
+    paddingVertical: 14,
     alignItems: 'center',
   },
   claimButtonText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '800',
     color: '#000000',
   },
   section: {
-    marginBottom: 20,
+    marginBottom: 22,
   },
   sectionTitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '700',
     color: COLORS.text,
     marginBottom: 12,
@@ -340,27 +349,31 @@ const styles = StyleSheet.create({
   tierCardFeatured: {
     borderColor: COLORS.green,
     backgroundColor: '#151c17',
-    position: 'relative',
   },
-  bestValuePill: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
+  tierHeader: {
+    marginBottom: 6,
+  },
+  tierHeaderWithBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  popularBadge: {
     backgroundColor: COLORS.green,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: 6,
   },
-  bestValueText: {
+  popularBadgeText: {
     fontSize: 9,
     fontWeight: '900',
     color: '#000000',
   },
   tierName: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
     color: COLORS.text,
-    marginBottom: 4,
   },
   tierPrice: {
     fontSize: 15,
@@ -375,7 +388,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   tierFeatures: {
-    gap: 4,
+    gap: 6,
     borderTopWidth: 1,
     borderTopColor: '#252831',
     paddingTop: 10,
@@ -395,12 +408,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingVertical: 6,
+    paddingVertical: 8,
   },
   guaranteeIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#252831',
     alignItems: 'center',
     justifyContent: 'center',
@@ -418,7 +431,7 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     backgroundColor: COLORS.border,
-    marginVertical: 6,
+    marginVertical: 8,
   },
   prohibitedCard: {
     flexDirection: 'row',
@@ -446,7 +459,7 @@ const styles = StyleSheet.create({
   prohibitedSub: {
     fontSize: 11,
     color: '#d97706',
-    marginTop: 1,
+    marginTop: 2,
   },
   faqContainer: {
     gap: 10,

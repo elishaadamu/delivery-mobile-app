@@ -8,6 +8,7 @@ import {
   Modal,
   Alert,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '../constants/theme';
 import { sampleNews, LogisticsNewsItem } from '../data/mockData';
@@ -17,6 +18,7 @@ interface NewsScreenProps {
 }
 
 export default function NewsScreen({ onBack }: NewsScreenProps) {
+  const insets = useSafeAreaInsets();
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [activeArticle, setActiveArticle] = useState<LogisticsNewsItem | null>(null);
 
@@ -29,13 +31,13 @@ export default function NewsScreen({ onBack }: NewsScreenProps) {
   const featuredItem = sampleNews.find((n) => n.isFeatured) || sampleNews[0];
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Top Header */}
       <View style={styles.headerRow}>
         <TouchableOpacity
           style={styles.iconButton}
           onPress={onBack}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
           <Feather name="chevron-left" size={26} color="#ffffff" />
         </TouchableOpacity>
@@ -226,7 +228,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
   featuredCard: {
     backgroundColor: '#162b1d',

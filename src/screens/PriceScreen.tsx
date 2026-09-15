@@ -9,6 +9,7 @@ import {
   Switch,
   Alert,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS } from '../constants/theme';
 
@@ -18,46 +19,51 @@ interface PriceScreenProps {
 }
 
 export default function PriceScreen({ onBack, onProceedToCheckout }: PriceScreenProps) {
+  const insets = useSafeAreaInsets();
   const [tier, setTier] = useState<'ground' | 'air' | 'same_day'>('air');
-  const [origin, setOrigin] = useState('Sauerfort 67847');
-  const [destination, setDestination] = useState('Berlin 10115');
+  const [origin, setOrigin] = useState('Ikeja, Lagos State');
+  const [destination, setDestination] = useState('Wuse II, Abuja FCT');
   const [weightKg, setWeightKg] = useState(2.5);
   const [insurance, setInsurance] = useState(true);
   const [signatureReq, setSignatureReq] = useState(true);
 
-  // Rate calculations
-  const baseRate = tier === 'ground' ? 14.5 : tier === 'air' ? 28.0 : 42.0;
-  const weightCost = weightKg * 4.2;
-  const insuranceCost = insurance ? 4.0 : 0.0;
-  const signatureCost = signatureReq ? 2.5 : 0.0;
+  // Rate calculations in Nigerian Naira (₦)
+  const baseRate = tier === 'ground' ? 8500 : tier === 'air' ? 18000 : 25000;
+  const weightCost = weightKg * 2000;
+  const insuranceCost = insurance ? 2500 : 0;
+  const signatureCost = signatureReq ? 1000 : 0;
   const totalCost = baseRate + weightCost + insuranceCost + signatureCost;
 
   const handleBook = () => {
     Alert.alert(
       '📦 Shipment Quote Confirmed',
-      `Total: $${totalCost.toFixed(2)}\nOrigin: ${origin}\nDestination: ${destination}\nSpeed: ${
-        tier === 'ground' ? 'Standard Ground' : tier === 'air' ? 'Next-Day Express' : 'Same-Day Courier'
+      `Total: ₦${totalCost.toLocaleString()}\nOrigin: ${origin}\nDestination: ${destination}\nTier: ${
+        tier === 'ground'
+          ? 'Standard Interstate Freight'
+          : tier === 'air'
+          ? 'Express Next-Day Air'
+          : 'Same-Day Metro VIP'
       }`,
       [
-        { text: 'Proceed to Checkout', onPress: () => onProceedToCheckout?.() },
+        { text: 'Proceed to Payment', onPress: () => onProceedToCheckout?.() },
         { text: 'Cancel', style: 'cancel' },
       ]
     );
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Top Header */}
       <View style={styles.headerRow}>
         <TouchableOpacity
           style={styles.iconButton}
           onPress={onBack}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
           <Feather name="chevron-left" size={26} color="#ffffff" />
         </TouchableOpacity>
 
-        <Text style={styles.headerTitle}>Rate Calculator</Text>
+        <Text style={styles.headerTitle}>Nigeria Rate Calculator</Text>
 
         <TouchableOpacity
           style={styles.iconButton}
@@ -66,8 +72,10 @@ export default function PriceScreen({ onBack, onProceedToCheckout }: PriceScreen
             setTier('air');
             setInsurance(true);
             setSignatureReq(true);
+            setOrigin('Ikeja, Lagos State');
+            setDestination('Wuse II, Abuja FCT');
           }}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
           <Feather name="rotate-ccw" size={18} color="#9ca3af" />
         </TouchableOpacity>
@@ -78,8 +86,9 @@ export default function PriceScreen({ onBack, onProceedToCheckout }: PriceScreen
         contentContainerStyle={styles.scrollContent}
       >
         {/* Speed Tier Selection */}
-        <Text style={styles.sectionTitle}>Delivery Speed</Text>
+        <Text style={styles.sectionTitle}>Delivery Speed & Transit Mode</Text>
         <View style={styles.tierGrid}>
+          {/* Ground */}
           <TouchableOpacity
             style={[styles.tierOption, tier === 'ground' && styles.tierOptionActive]}
             onPress={() => setTier('ground')}
@@ -93,60 +102,59 @@ export default function PriceScreen({ onBack, onProceedToCheckout }: PriceScreen
             <Text style={[styles.tierOptionTitle, tier === 'ground' && styles.tierOptionTitleActive]}>
               Ground
             </Text>
-            <Text style={styles.tierOptionTime}>2-4 Days</Text>
-            <Text style={styles.tierOptionPrice}>From $14.50</Text>
+            <Text style={styles.tierOptionTime}>2-3 Days</Text>
+            <Text style={styles.tierOptionPrice}>From ₦8,500</Text>
           </TouchableOpacity>
 
+          {/* Air Express */}
           <TouchableOpacity
             style={[styles.tierOption, tier === 'air' && styles.tierOptionActive]}
             onPress={() => setTier('air')}
             activeOpacity={0.85}
           >
-            <View style={styles.popularBadge}>
-              <Text style={styles.popularBadgeText}>FASTEST</Text>
-            </View>
             <MaterialCommunityIcons
               name="airplane"
               size={22}
               color={tier === 'air' ? COLORS.green : '#9ca3af'}
             />
             <Text style={[styles.tierOptionTitle, tier === 'air' && styles.tierOptionTitleActive]}>
-              Air Express
+              Express
             </Text>
-            <Text style={styles.tierOptionTime}>Next-Day</Text>
-            <Text style={styles.tierOptionPrice}>From $28.00</Text>
+            <Text style={styles.tierOptionTime}>Next Day</Text>
+            <Text style={styles.tierOptionPrice}>From ₦18,000</Text>
           </TouchableOpacity>
 
+          {/* Same Day */}
           <TouchableOpacity
             style={[styles.tierOption, tier === 'same_day' && styles.tierOptionActive]}
             onPress={() => setTier('same_day')}
             activeOpacity={0.85}
           >
             <MaterialCommunityIcons
-              name="clock-fast"
+              name="lightning-bolt"
               size={22}
               color={tier === 'same_day' ? COLORS.green : '#9ca3af'}
             />
             <Text style={[styles.tierOptionTitle, tier === 'same_day' && styles.tierOptionTitleActive]}>
-              Same-Day
+              Same Day
             </Text>
-            <Text style={styles.tierOptionTime}>Today 19:00</Text>
-            <Text style={styles.tierOptionPrice}>From $42.00</Text>
+            <Text style={styles.tierOptionTime}>Within 6h</Text>
+            <Text style={styles.tierOptionPrice}>From ₦25,000</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Route Inputs */}
-        <Text style={[styles.sectionTitle, { marginTop: 18 }]}>Origin & Destination</Text>
-        <View style={styles.card}>
-          <View style={styles.inputRow}>
-            <View style={styles.dotOrigin} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.inputLabel}>Pickup Address / Hub</Text>
+        {/* Origin & Destination Inputs */}
+        <Text style={styles.sectionTitle}>Nigerian Route</Text>
+        <View style={styles.routeCard}>
+          <View style={styles.routeInputRow}>
+            <Ionicons name="radio-button-on" size={18} color={COLORS.green} />
+            <View style={styles.inputWrapper}>
+              <Text style={styles.inputLabel}>Pickup / Origin</Text>
               <TextInput
                 style={styles.textInput}
                 value={origin}
                 onChangeText={setOrigin}
-                placeholder="Origin postal code or hub"
+                placeholder="e.g. Ikeja, Lagos"
                 placeholderTextColor="#6b7280"
               />
             </View>
@@ -154,55 +162,54 @@ export default function PriceScreen({ onBack, onProceedToCheckout }: PriceScreen
 
           <View style={styles.routeDivider} />
 
-          <View style={styles.inputRow}>
-            <View style={styles.dotDestination} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.inputLabel}>Delivery Address</Text>
+          <View style={styles.routeInputRow}>
+            <Ionicons name="location" size={18} color={COLORS.orange} />
+            <View style={styles.inputWrapper}>
+              <Text style={styles.inputLabel}>Delivery / Destination</Text>
               <TextInput
                 style={styles.textInput}
                 value={destination}
                 onChangeText={setDestination}
-                placeholder="Destination postal code"
+                placeholder="e.g. Wuse II, Abuja"
                 placeholderTextColor="#6b7280"
               />
             </View>
           </View>
         </View>
 
-        {/* Parcel Weight & Stepper */}
-        <Text style={[styles.sectionTitle, { marginTop: 18 }]}>Package Weight</Text>
-        <View style={styles.card}>
-          <View style={styles.stepperRow}>
-            <View>
-              <Text style={styles.weightValue}>{weightKg.toFixed(1)} <Text style={styles.kgText}>kg</Text></Text>
-              <Text style={styles.weightSub}>Standard Parcel Size (Max 30 kg)</Text>
-            </View>
+        {/* Parcel Weight Selector */}
+        <Text style={styles.sectionTitle}>Estimated Weight</Text>
+        <View style={styles.weightCard}>
+          <View style={styles.weightDisplayRow}>
+            <Text style={styles.weightValue}>{weightKg.toFixed(1)} <Text style={styles.weightUnit}>kg</Text></Text>
+            <Text style={styles.weightRate}>₦2,000 / kg standard freight</Text>
+          </View>
 
-            <View style={styles.stepperControls}>
+          <View style={styles.weightButtonsRow}>
+            {[0.5, 1.0, 2.5, 5.0, 10.0].map((w) => (
               <TouchableOpacity
-                style={styles.stepBtn}
-                onPress={() => setWeightKg((prev) => Math.max(0.5, prev - 0.5))}
+                key={w}
+                style={[styles.weightPill, weightKg === w && styles.weightPillActive]}
+                onPress={() => setWeightKg(w)}
               >
-                <Feather name="minus" size={18} color="#ffffff" />
+                <Text style={[styles.weightPillText, weightKg === w && styles.weightPillTextActive]}>
+                  {w} kg
+                </Text>
               </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.stepBtn}
-                onPress={() => setWeightKg((prev) => Math.min(30, prev + 0.5))}
-              >
-                <Feather name="plus" size={18} color="#ffffff" />
-              </TouchableOpacity>
-            </View>
+            ))}
           </View>
         </View>
 
-        {/* Value-Add Protection Toggles */}
-        <Text style={[styles.sectionTitle, { marginTop: 18 }]}>Options & Protection</Text>
-        <View style={styles.card}>
-          <View style={styles.toggleRow}>
-            <View style={{ flex: 1, paddingRight: 10 }}>
-              <Text style={styles.toggleTitle}>Premium Insurance Shield (+$4.00)</Text>
-              <Text style={styles.toggleSub}>Full value protection up to $2,500 with zero deductible</Text>
+        {/* Protection & Extras */}
+        <Text style={styles.sectionTitle}>Add-on Protection</Text>
+        <View style={styles.extrasCard}>
+          <View style={styles.extraRow}>
+            <View style={styles.extraLeft}>
+              <MaterialCommunityIcons name="shield-check" size={20} color={COLORS.green} />
+              <View>
+                <Text style={styles.extraTitle}>Full Transit Insurance (₦2,500)</Text>
+                <Text style={styles.extraSub}>100% loss/damage reimbursement up to ₦2.5M</Text>
+              </View>
             </View>
             <Switch
               value={insurance}
@@ -214,10 +221,13 @@ export default function PriceScreen({ onBack, onProceedToCheckout }: PriceScreen
 
           <View style={styles.divider} />
 
-          <View style={styles.toggleRow}>
-            <View style={{ flex: 1, paddingRight: 10 }}>
-              <Text style={styles.toggleTitle}>Adult Signature Required (+$2.50)</Text>
-              <Text style={styles.toggleSub}>Courier verifies identity before handover</Text>
+          <View style={styles.extraRow}>
+            <View style={styles.extraLeft}>
+              <Feather name="pen-tool" size={18} color="#60a5fa" />
+              <View>
+                <Text style={styles.extraTitle}>Digital Signature Proof (₦1,000)</Text>
+                <Text style={styles.extraSub}>Biometric / OTP recipient handover verification</Text>
+              </View>
             </View>
             <Switch
               value={signatureReq}
@@ -228,46 +238,40 @@ export default function PriceScreen({ onBack, onProceedToCheckout }: PriceScreen
           </View>
         </View>
 
-        {/* Live Calculation Quote Card */}
-        <View style={styles.quoteCard}>
-          <Text style={styles.quoteCardTitle}>Price Breakdown</Text>
-
-          <View style={styles.quoteRow}>
-            <Text style={styles.quoteLabel}>Base Freight Rate</Text>
-            <Text style={styles.quoteValue}>${baseRate.toFixed(2)}</Text>
+        {/* Cost Summary & Booking CTA */}
+        <View style={styles.summaryCard}>
+          <View style={styles.summaryLine}>
+            <Text style={styles.summaryLabel}>Base Courier Freight</Text>
+            <Text style={styles.summaryValue}>₦{baseRate.toLocaleString()}</Text>
           </View>
-
-          <View style={styles.quoteRow}>
-            <Text style={styles.quoteLabel}>Weight ({weightKg.toFixed(1)} kg)</Text>
-            <Text style={styles.quoteValue}>${weightCost.toFixed(2)}</Text>
+          <View style={styles.summaryLine}>
+            <Text style={styles.summaryLabel}>Weight Charge ({weightKg} kg)</Text>
+            <Text style={styles.summaryValue}>₦{weightCost.toLocaleString()}</Text>
           </View>
-
           {insurance && (
-            <View style={styles.quoteRow}>
-              <Text style={styles.quoteLabel}>Premium Insurance Shield</Text>
-              <Text style={styles.quoteValue}>$4.00</Text>
+            <View style={styles.summaryLine}>
+              <Text style={styles.summaryLabel}>Transit Insurance Shield</Text>
+              <Text style={styles.summaryValue}>₦{insuranceCost.toLocaleString()}</Text>
             </View>
           )}
-
           {signatureReq && (
-            <View style={styles.quoteRow}>
-              <Text style={styles.quoteLabel}>Adult Signature Handover</Text>
-              <Text style={styles.quoteValue}>$2.50</Text>
+            <View style={styles.summaryLine}>
+              <Text style={styles.summaryLabel}>Verified Recipient Handover</Text>
+              <Text style={styles.summaryValue}>₦{signatureCost.toLocaleString()}</Text>
             </View>
           )}
 
-          <View style={styles.quoteTotalRow}>
-            <Text style={styles.quoteTotalLabel}>Total Estimate</Text>
-            <Text style={styles.quoteTotalValue}>${totalCost.toFixed(2)}</Text>
-          </View>
+          <View style={styles.totalRow}>
+            <View>
+              <Text style={styles.totalLabel}>Estimated Total</Text>
+              <Text style={styles.totalAmount}>₦{totalCost.toLocaleString()}</Text>
+            </View>
 
-          <TouchableOpacity
-            style={styles.bookButton}
-            onPress={handleBook}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.bookButtonText}>Book This Shipment →</Text>
-          </TouchableOpacity>
+            <TouchableOpacity style={styles.bookButton} onPress={handleBook} activeOpacity={0.85}>
+              <Text style={styles.bookButtonText}>Book Delivery</Text>
+              <Feather name="arrow-right" size={16} color="#000000" />
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
     </View>
@@ -284,237 +288,245 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 14,
+    paddingVertical: 12,
   },
   iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#1c1f26',
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '700',
     color: COLORS.text,
     letterSpacing: -0.3,
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
   sectionTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '700',
     color: COLORS.text,
     marginBottom: 10,
+    marginTop: 16,
   },
   tierGrid: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 10,
   },
   tierOption: {
     flex: 1,
     backgroundColor: COLORS.card,
     borderRadius: 16,
-    padding: 12,
+    padding: 14,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: COLORS.border,
-    position: 'relative',
   },
   tierOptionActive: {
     borderColor: COLORS.green,
-    backgroundColor: '#162319',
-  },
-  popularBadge: {
-    position: 'absolute',
-    top: -8,
-    backgroundColor: COLORS.green,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    borderRadius: 4,
-  },
-  popularBadgeText: {
-    fontSize: 8,
-    fontWeight: '900',
-    color: '#000000',
+    backgroundColor: '#16221a',
   },
   tierOptionTitle: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
     color: COLORS.text,
     marginTop: 6,
-    marginBottom: 2,
   },
   tierOptionTitleActive: {
     color: COLORS.green,
   },
   tierOptionTime: {
-    fontSize: 10,
+    fontSize: 11,
     color: COLORS.textSecondary,
-    marginBottom: 4,
+    marginTop: 2,
   },
   tierOptionPrice: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#d1d5db',
+    fontSize: 12,
+    fontWeight: '800',
+    color: COLORS.text,
+    marginTop: 6,
   },
-  card: {
+  routeCard: {
     backgroundColor: COLORS.card,
     borderRadius: 18,
     padding: 16,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
-  inputRow: {
+  routeInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
-  dotOrigin: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: COLORS.orange,
-  },
-  dotDestination: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: COLORS.green,
-  },
-  inputLabel: {
-    fontSize: 11,
-    color: COLORS.textMuted,
-    marginBottom: 2,
-  },
-  textInput: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.text,
-    padding: 0,
-  },
   routeDivider: {
     height: 1,
-    backgroundColor: COLORS.border,
+    backgroundColor: '#262a36',
     marginVertical: 12,
-    marginLeft: 22,
+    marginLeft: 30,
   },
-  stepperRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  inputWrapper: {
+    flex: 1,
   },
-  weightValue: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: COLORS.text,
-  },
-  kgText: {
-    fontSize: 16,
-    color: COLORS.green,
+  inputLabel: {
+    fontSize: 10,
     fontWeight: '700',
+    color: COLORS.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  weightSub: {
-    fontSize: 11,
-    color: COLORS.textMuted,
+  textInput: {
+    color: COLORS.text,
+    fontSize: 14,
+    fontWeight: '600',
     marginTop: 2,
+    padding: 0,
   },
-  stepperControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  stepBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#252831',
-    alignItems: 'center',
-    justifyContent: 'center',
+  weightCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 18,
+    padding: 16,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
-  toggleRow: {
+  weightDisplayRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    marginBottom: 14,
+  },
+  weightValue: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: COLORS.text,
+  },
+  weightUnit: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+  },
+  weightRate: {
+    fontSize: 12,
+    color: COLORS.green,
+    fontWeight: '600',
+  },
+  weightButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 6,
+  },
+  weightPill: {
+    flex: 1,
+    backgroundColor: '#1c1f26',
+    borderRadius: 10,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#262a36',
+  },
+  weightPillActive: {
+    backgroundColor: COLORS.greenBg,
+    borderColor: COLORS.green,
+  },
+  weightPillText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.textSecondary,
+  },
+  weightPillTextActive: {
+    color: COLORS.green,
+  },
+  extrasCard: {
+    backgroundColor: COLORS.card,
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  extraRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 4,
   },
-  toggleTitle: {
+  extraLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+    marginRight: 10,
+  },
+  extraTitle: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
     color: COLORS.text,
-    marginBottom: 2,
   },
-  toggleSub: {
+  extraSub: {
     fontSize: 11,
     color: COLORS.textSecondary,
+    marginTop: 2,
   },
   divider: {
     height: 1,
-    backgroundColor: COLORS.border,
-    marginVertical: 10,
+    backgroundColor: '#262a36',
+    marginVertical: 12,
   },
-  quoteCard: {
-    backgroundColor: '#162319',
+  summaryCard: {
+    backgroundColor: '#161922',
     borderRadius: 20,
     padding: 18,
     borderWidth: 1,
-    borderColor: '#1e3a24',
+    borderColor: '#262a36',
     marginTop: 20,
   },
-  quoteCardTitle: {
-    fontSize: 14,
+  summaryLine: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  summaryLabel: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+  },
+  summaryValue: {
+    fontSize: 12,
     fontWeight: '700',
-    color: '#ffffff',
-    marginBottom: 12,
+    color: COLORS.text,
   },
-  quoteRow: {
+  totalRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  quoteLabel: {
-    fontSize: 13,
-    color: '#9ca3af',
-  },
-  quoteValue: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#d1d5db',
-  },
-  quoteTotalRow: {
-    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     borderTopWidth: 1,
-    borderTopColor: '#233827',
-    paddingTop: 12,
+    borderTopColor: '#262a36',
+    paddingTop: 14,
     marginTop: 8,
-    marginBottom: 16,
   },
-  quoteTotalLabel: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#ffffff',
+  totalLabel: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    fontWeight: '600',
   },
-  quoteTotalValue: {
+  totalAmount: {
     fontSize: 22,
     fontWeight: '900',
     color: COLORS.green,
   },
   bookButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: COLORS.green,
     borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 18,
+    gap: 6,
   },
   bookButtonText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800',
     color: '#000000',
   },
